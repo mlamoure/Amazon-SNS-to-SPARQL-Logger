@@ -1,0 +1,33 @@
+{
+	"AWS": {
+		"defaultRegion": "region",
+		"accessKeyId": "key",
+		"secretAccessKey": "key"
+	},
+
+	"PublicPort": 60015,
+	"PrivatePort": 60015,
+
+	"UseNATPNP": true,
+	"Gateway": "192.168.1.1",
+
+	"snsEndpointURL": "http://my-ip:60015",
+	"snsUseHTTPS": false,
+
+	"SPARQL_Update_Endpoint": "http://sparql_endpoint",
+
+	"SNSTopics": [
+		{
+			"TopicARN": "SNS_Topic_ARN",
+			"baseURI": "http://mike.lamoureux.me",
+			"SubjectURIPrefix": "http://mike.lamoureux.me/networking/event",
+			"SubjectType": "http://mike.lamoureux.me/networking/event/eventname"
+		},
+		{
+			"TopicARN": "arn:aws:sns:us-east-1:279843728199:didDiscoverUpdatediDeviceInformation",			
+			"baseURI": "http://mike.lamoureux.me",
+			"SubjectURIPrefix": "http://mike.lamoureux.me/energy/event",
+			"SubjectType": "http://mike.lamoureux.me/energy/event/eventname"
+		}
+	]
+}
