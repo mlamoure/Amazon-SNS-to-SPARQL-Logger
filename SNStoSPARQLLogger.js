@@ -267,7 +267,7 @@ function parsePOST(request, response) {
 				{
 					if (filter) {
 						if (messageAttr == filterField) {
-							if (filterValue == message[messageAttr]) {
+							if (filterValue.toString() == message[messageAttr].toString()) {
 								passFilterTest = true;
 							}
 						}
@@ -283,6 +283,9 @@ function parsePOST(request, response) {
 
 						logToRDF(sparql);
 					});
+				}
+				else {
+					console.log("** (" + getCurrentTime() + ") Will not record becase a filter criteria has not been met.");
 				}
 		    }
 		    else
