@@ -248,7 +248,9 @@ function parsePOST(request, response) {
 				var filter = false;
 
 				if (typeof(filterField) !== 'undefined') {
-					filter = true;
+					if (typeof(message[filter]) !== 'undefined') {
+						filter = true;						
+					}
 				}
 
 				// check to see if contains a trailing slash, add one if not.
