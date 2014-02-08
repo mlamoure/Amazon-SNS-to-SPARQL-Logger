@@ -242,6 +242,14 @@ function parsePOST(request, response) {
 				var message = JSON.parse(postData.Message);
 				var subjectURIPrefix = snsTopicOptions.SubjectURIPrefix;
 				var subjectType = snsTopicOptions.SubjectType;
+				var filterField = snsTopicOptions.FilterField;
+				var filterValue = snsTopicOptions.FilterValue;
+				var passFilterTest = false;
+				var filter = false;
+
+				if (typeof(filterField) !== 'undefined') {
+					filter = true;
+				}
 
 				// check to see if contains a trailing slash, add one if not.
 				if (subjectURIPrefix[subjectURIPrefix.length-1] != "/") {
@@ -257,15 +265,25 @@ function parsePOST(request, response) {
 
 				for(var messageAttr in message)
 				{
+					if (filter) {
+						if (messageAttr == filterField) {
+							if (filterValue == message[messageAttr]) {
+								passFilterTest = true;
+							}
+						}
+					}
 					n3.addTriple(subject, subjectURIPrefix + "#" + messageAttr, "\"" + message[messageAttr] + "\"")
 				}
 
-				n3.end(function (error, result) {
+				if (!filter || passFilterTest)
+				{
+					n3.end(function (error, result) {
 						var sparql = "INSERT DATA {" + result + "}";
 						console.log("** (" + getCurrentTime() + ") SPARQL Statement about to be executed: " + sparql);
 
 						logToRDF(sparql);
 					});
+				}
 		    }
 		    else
 		    {

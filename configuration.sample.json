@@ -21,7 +21,9 @@
 			"TopicARN": "SNS_Topic_ARN",
 			"baseURI": "http://mike.lamoureux.me",
 			"SubjectURIPrefix": "http://mike.lamoureux.me/networking/event",
-			"SubjectType": "http://mike.lamoureux.me/networking/event/eventname"
+			"SubjectType": "http://mike.lamoureux.me/networking/event/eventname",
+			"FilterField": "locationChanged",
+			"FilterValue": "True"
 		},
 		{
 			"TopicARN": "arn:aws:sns:us-east-1:279843728199:didDiscoverUpdatediDeviceInformation",			
