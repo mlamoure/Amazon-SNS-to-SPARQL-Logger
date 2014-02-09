@@ -248,7 +248,7 @@ function parsePOST(request, response) {
 				var filter = false;
 
 				if (typeof(filterField) !== 'undefined') {
-					if (typeof(message[filter]) !== 'undefined') {
+					if (typeof(message[filterField]) !== 'undefined') {
 						filter = true;						
 					}
 				}
