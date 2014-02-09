@@ -24,6 +24,7 @@ var refreshNATIntervalID = "undefined";
 var natTTL;
 
 var amQuitting = false;
+var debug = false;
 
 var sparqlUpdateEndpoint;
 var portForwardingRefreshRate;
@@ -279,7 +280,10 @@ function parsePOST(request, response) {
 					n3.addTriple(subject, subjectURIPrefix + "#" + messageAttr, "\"" + message[messageAttr] + "\"")
 				}
 
-				console.log("** (" + getCurrentTime() + ") filter: " + filter.toString() + " passFilterTest: " + passFilterTest.toString());
+				if (debug) {
+					console.log("** (" + getCurrentTime() + ") filter: " + filter.toString() + " passFilterTest: " + passFilterTest.toString());
+				}
+
 
 				if (!filter || passFilterTest)
 				{
@@ -295,7 +299,7 @@ function parsePOST(request, response) {
 						}
 					});
 				}
-				else {
+				else if (debug) {
 					console.log("** (" + getCurrentTime() + ") Will not record becase a filter criteria has not been met.");
 				}
 		    }
@@ -307,7 +311,7 @@ function parsePOST(request, response) {
 		    }
         });
     }
-    else
+    else if (debug)
     {
 		console.log("** (" + getCurrentTime() + ") Got a GET, but do not know why...");
 		console.log(request.param);
@@ -397,6 +401,7 @@ function loadConfiguration(callback) {
 		snsEndpointPrivatePort =  configuration.PrivatePort;
 		snsEndpointPublicPort = configuration.PublicPort;
 		fakePublish = configuration.FakePublish;
+		debug = configuration.debug;
 
 		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Public Port set to " + snsEndpointPublicPort);
 		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Private Port set to " + snsEndpointPrivatePort);

@@ -10,6 +10,7 @@
 
 	"UseNATPNP": true,
 	"Gateway": "192.168.1.1",
+	"debug": false,
 
 	"snsEndpointURL": "http://my-ip:60015",
 	"snsUseHTTPS": false,
