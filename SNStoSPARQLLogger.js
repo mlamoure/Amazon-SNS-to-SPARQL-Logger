@@ -268,6 +268,8 @@ function parsePOST(request, response) {
 				for(var messageAttr in message)
 				{
 					if (filter) {
+						console.log("** (" + getCurrentTime() + ") Checking for the filter field.");
+
 						if (messageAttr.toString().toUpperCase() == filterField.toString().toUpperCase()) {
 							if (filterValue.toString().toUpperCase() == message[messageAttr].toString().toUpperCase()) {
 								passFilterTest = true;
@@ -276,6 +278,8 @@ function parsePOST(request, response) {
 					}
 					n3.addTriple(subject, subjectURIPrefix + "#" + messageAttr, "\"" + message[messageAttr] + "\"")
 				}
+
+				console.log("** (" + getCurrentTime() + ") filter: " + filter.toString() + " passFilterTest: " + passFilterTest.toString());
 
 				if (!filter || passFilterTest)
 				{
