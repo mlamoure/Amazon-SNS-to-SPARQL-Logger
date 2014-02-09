@@ -13,6 +13,7 @@
 
 	"snsEndpointURL": "http://my-ip:60015",
 	"snsUseHTTPS": false,
+	"FakePublish": false,
 
 	"SPARQL_Update_Endpoint": "http://sparql_endpoint",
 

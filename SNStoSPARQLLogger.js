@@ -268,7 +268,7 @@ function parsePOST(request, response) {
 				for(var messageAttr in message)
 				{
 					if (filter) {
-						console.log("** (" + getCurrentTime() + ") Checking for the filter field.");
+//						console.log("** (" + getCurrentTime() + ") Checking for the filter field.");
 
 						if (messageAttr.toString().toUpperCase() == filterField.toString().toUpperCase()) {
 							if (filterValue.toString().toUpperCase() == message[messageAttr].toString().toUpperCase()) {
@@ -285,9 +285,14 @@ function parsePOST(request, response) {
 				{
 					n3.end(function (error, result) {
 						var sparql = "INSERT DATA {" + result + "}";
-						console.log("** (" + getCurrentTime() + ") SPARQL Statement about to be executed: " + sparql);
 
-						logToRDF(sparql);
+						if (!fakePublish) {
+							console.log("** (" + getCurrentTime() + ") SPARQL Statement about to be executed: " + sparql);
+							logToRDF(sparql);
+						}
+						else {
+							console.log("** (" + getCurrentTime() + ") Not going to execute sparql statement because fakePublish flag is set: " + sparql);
+						}
 					});
 				}
 				else {
@@ -391,6 +396,8 @@ function loadConfiguration(callback) {
 
 		snsEndpointPrivatePort =  configuration.PrivatePort;
 		snsEndpointPublicPort = configuration.PublicPort;
+		fakePublish = configuration.FakePublish;
+
 		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Public Port set to " + snsEndpointPublicPort);
 		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Private Port set to " + snsEndpointPrivatePort);
 
