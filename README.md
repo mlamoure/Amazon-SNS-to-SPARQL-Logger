@@ -1,0 +1,3 @@
+Simple Amazon SNS client written in Node.js that will publish to a SPARQL endpoint.  It's designed to be able to convert basic key/value objects from JSON to RDF without any coding.  The configuration file allows you to specify patterns for each SNS topic to create the proper subject, and preface each predicate.
+
+This is a great option to persist messages in RDF rather than writing them to a JSON store.  RDF is preferred over JSON because of the standardized and robust query language that it has, as well as RDF's clarity around typing.
