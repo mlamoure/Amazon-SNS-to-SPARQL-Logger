@@ -268,8 +268,8 @@ function parsePOST(request, response) {
 				for(var messageAttr in message)
 				{
 					if (filter) {
-						if (messageAttr == filterField) {
-							if (filterValue.toString() == message[messageAttr].toString()) {
+						if (messageAttr.toString().toUpperCase() == filterField.toString().toUpperCase()) {
+							if (filterValue.toString().toUpperCase() == message[messageAttr].toString().toUpperCase()) {
 								passFilterTest = true;
 							}
 						}
