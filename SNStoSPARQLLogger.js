@@ -245,12 +245,20 @@ function parsePOST(request, response) {
 				var subjectType = snsTopicOptions.SubjectType;
 				var filterField = snsTopicOptions.FilterField;
 				var filterValue = snsTopicOptions.FilterValue;
+				var objectTypes = snsTopicOptions.ObjectTypes;
 				var passFilterTest = false;
 				var filter = false;
+				var convertTypes = false;
 
 				if (typeof(filterField) !== 'undefined') {
 					if (typeof(message[filterField]) !== 'undefined') {
 						filter = true;						
+					}
+				}
+
+				if (typeof(objectTypes) !== 'undefined') {
+					if (objectTypes.length > 0) {
+						convertTypes = true;
 					}
 				}
 
@@ -260,6 +268,8 @@ function parsePOST(request, response) {
 				}
 
 				var subject = subjectURIPrefix + postData.MessageId;
+				var object;
+				var predicate;
 
 				console.log("** (" + getCurrentTime() + ") Got a SNS Notification POST, Message Recieved: ");
 				console.log(message);	
@@ -268,6 +278,7 @@ function parsePOST(request, response) {
 
 				for(var messageAttr in message)
 				{
+					predicate = subjectURIPrefix + "#" + messageAttr;
 					if (filter) {
 //						console.log("** (" + getCurrentTime() + ") Checking for the filter field.");
 
@@ -277,7 +288,36 @@ function parsePOST(request, response) {
 							}
 						}
 					}
-					n3.addTriple(subject, subjectURIPrefix + "#" + messageAttr, "\"" + message[messageAttr] + "\"")
+
+					if (convertTypes) {
+						for (var counter = 0; counter < objectTypes.length; counter++) {
+							if (messageAttr.toString().toUpperCase() == objectTypes[counter].property.toString().toUpperCase()) {
+								if (objectTypes[counter].convert == "JSONtoRDFDateTime") {
+									var d = moment(message[messageAttr]);
+									object = "\"" + d.format("YYYY-MM-DDTHH:mm:ss") + "^^" + objectTypes[counter].type + "\"";
+								}
+								else {
+									object = "\"" + message[messageAttr] + "^^" + objectTypes[counter].type + "\"";
+								}
+							}
+						}
+					}
+
+					if (typeof(object) === 'undefined') {
+						object = "\"" + message[messageAttr] + "\"";
+					}
+
+
+					if (debug) {
+						console.log("About to add the triple: ");
+						console.log("Subject: " + subject);
+						console.log("Predicate: " + predicate);
+						console.log("Object: " + object);						
+					}
+
+					n3.addTriple(subject, predicate, object);
+
+					object = undefined;
 				}
 
 				if (debug) {
