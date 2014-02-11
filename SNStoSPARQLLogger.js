@@ -309,7 +309,7 @@ function parsePOST(request, response) {
 
 
 					if (debug) {
-						consle.log("**********************************")					
+						console.log("**********************************")					
 						console.log("About to add the triple: ");
 						console.log("Subject: " + subject);
 						console.log("Predicate: " + predicate);
