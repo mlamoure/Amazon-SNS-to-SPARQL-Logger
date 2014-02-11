@@ -309,10 +309,12 @@ function parsePOST(request, response) {
 
 
 					if (debug) {
+						consle.log("**********************************")					
 						console.log("About to add the triple: ");
 						console.log("Subject: " + subject);
 						console.log("Predicate: " + predicate);
-						console.log("Object: " + object);						
+						console.log("Object: " + object);	
+						consle.log("**********************************")					
 					}
 
 					n3.addTriple(subject, predicate, object);
