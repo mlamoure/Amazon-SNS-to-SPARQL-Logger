@@ -314,7 +314,7 @@ function parsePOST(request, response) {
 						console.log("Subject: " + subject);
 						console.log("Predicate: " + predicate);
 						console.log("Object: " + object);	
-						consle.log("**********************************")					
+						console.log("**********************************")					
 					}
 
 					n3.addTriple(subject, predicate, object);
