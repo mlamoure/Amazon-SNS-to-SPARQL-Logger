@@ -25,7 +25,30 @@
 			"SubjectURIPrefix": "http://mike.lamoureux.me/networking/event",
 			"SubjectType": "http://mike.lamoureux.me/networking/event/eventname",
 			"FilterField": "locationChanged",
-			"FilterValue": "True"
+			"FilterValue": "True",
+			"ObjectTypes": [
+				{
+					"property": "LocationTimestamp",
+					"type": "<http://www.w3.org/2001/XMLSchema#dateTime>",
+					"convert": "JSONtoRDFDateTime"
+				},
+				{
+					"property": "deviceID",
+					"type": "<http://www.w3.org/2001/XMLSchema#string>"
+				},
+				{
+					"property": "deviceName",
+					"type": "<http://www.w3.org/2001/XMLSchema#string>"
+				},
+				{
+					"property": "modelDisplayName",
+					"type": "<http://www.w3.org/2001/XMLSchema#string>"
+				},
+				{
+					"property": "locationChanged",
+					"type": "<http://www.w3.org/2001/XMLSchema#boolean>"
+				}
+			]
 		},
 		{
 			"TopicARN": "arn:aws:sns:us-east-1:279843728199:didDiscoverUpdatediDeviceInformation",			
