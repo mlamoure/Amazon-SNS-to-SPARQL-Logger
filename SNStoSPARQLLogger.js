@@ -1,88 +1,42 @@
 var Buffer = require('buffer').Buffer;
 var https  = require('https');
-var AWS = require('aws-sdk');
 var util = require('util');
 var moment = require('moment');
-var fs = require('fs');
 var path = require('path');
 var http = require('http');
 var N3 = require('n3');
 var needle = require('needle');
-var sleep = require('sleep');
+var JSONConfigurationController = require("./JSONConfigurationController.js");
 
-var AWS_SNS;
+var configuration;
 var server;
-
 var dateformat = "YYYY/MM/DD HH:mm:ss";
-var useNATPMP;
-var snsSubscriptionTopics;
-var snsEndpointURL;
-var snsEndpointPrivatePort;
-var snsEndpointPublicPort;
-
-var refreshNATIntervalID = "undefined";
-var natTTL;
-
-var amQuitting = false;
-var debug = false;
-
-var sparqlUpdateEndpoint;
-var portForwardingRefreshRate;
-
 var configFileIncPath = path.join(__dirname + '/configuration.json');
 
+var refreshNATIntervalID = undefined;
+var amQuitting = false;
+
 function main() {
-	natTTL = 100;
-	portForwardingRefreshRate = (natTTL - 5) * 1000 * 60;
-
-	loadConfiguration(function() {
-		postConfigurationSettings();
-
-		// watch the configuration file for changes.  reload if anything changes
-		fs.watchFile(configFileIncPath, function (event, filename) {
-			console.log("** (" + getCurrentTime() + ") RELOADING CONFIGURATION");
-
-			resetAll(function() {
-				loadConfiguration(function() {
-					postConfigurationSettings();
-				});
-			})	
-		});
-
-	});	
+	configuration = new JSONConfigurationController();
+	configuration.setConfiguration(configFileIncPath);
+	configuration.on("configComplete", postConfiguration);
+	configuration.on("reset", resetConfiguration);
 }
 
-function resetAll(callback) {
+function resetConfiguration(callback) {
 	unSubscribeAllSNSTopics(function () {
-		sleep.sleep(5);
-
-		if (server != null) {
-			console.log("** (" + getCurrentTime() + ") HTTP Server on port " + snsEndpointPrivatePort + " was shut down");
+		if (typeof(server) !== 'undefined') {
+			console.log("** (" + getCurrentTime() + ") HTTP Server on port " + configuration.data.PrivatePort + " was shut down");
 			server.close();
 		}
 
 		console.log("** (" + getCurrentTime() + ") Resetting all configuration variables...");
 
-		// configure AWS 
-		AWS.config.update({
-			'region': 'none',
-		    'accessKeyId': 'none',
-		    'secretAccessKey': 'none'
-		});
-		
-		snsSubscriptionTopics = undefined;
-		snsEndpointURL = undefined;
-		useNATPMP = undefined;
-		snsEndpointPrivatePort =  undefined;
-		snsEndpointPublicPort = undefined;
-		sparqlUpdateEndpoint = undefined;
-
-
-		if (refreshNATIntervalID != "undefined") {
+		if (typeof(refreshNATIntervalID) !== 'undefined') {
 			clearInterval(refreshNATIntervalID);
 			console.log("** (" + getCurrentTime() + ") Resetting NAT/uPNP Settings...");
 		}
-		refreshNATIntervalID = "undefined";
+		refreshNATIntervalID = undefined;
 
 		if (callback != null) {
 			console.log("** (" + getCurrentTime() + ") Completed resetting...");
@@ -102,7 +56,7 @@ process.on( 'SIGINT', function() {
 
 		console.log("** (" + getCurrentTime() + ") Shutting down... please wait");
 
-		resetAll(function() {
+		resetConfiguration(function() {
 			// some other closing procedures go here
 			console.log("** (" + getCurrentTime() + ") All set!  Quitting.");
 
@@ -111,18 +65,18 @@ process.on( 'SIGINT', function() {
 	}
 })
 
-function postConfigurationSettings() {
-	if (useNATPMP) {
+function postConfiguration() {
+	if (configuration.data.UseNATPNP) {
 		startPortForwarding();
 
 		refreshNATIntervalID = setInterval(function() {
 			startPortForwarding();
-        }, portForwardingRefreshRate);			
+        }, configuration.data.NatTTL * 60 * 1000);
 	}
 
-	if (snsEndpointURL.length > 0) setEndpointURL();
+	if (configuration.data.snsEndpointURL.length > 0) setEndpointURL();
 
-	createHTTPServer(snsEndpointPrivatePort);
+	createHTTPServer(configuration.data.PrivatePort);
 	subscribeAllSNSTopics();
 }
 
@@ -132,69 +86,37 @@ function setEndpointURL() {
 function unSubscribeAllSNSTopics(callback) {
 	var completed = 0;
 
-	for (var i in snsSubscriptionTopics)
+	for (var i in configuration.data.SNSTopics)
 	{
-		console.log("** (" + getCurrentTime() + ") Unsubscribing to SNS Topic: " + snsSubscriptionTopics[i].TopicARN);
+		console.log("** (" + getCurrentTime() + ") Unsubscribing to SNS Topic: " + configuration.data.SNSTopics[i].TopicARN);
 
-		unSubscribeSNSTopic(snsSubscriptionTopics[i].SubscriptionArn, function (subscriptionArn) {
-//			console.log("** (" + getCurrentTime() + ") Waiting for final unsubscription (SubscriptionArn: " + snsSubscriptionTopics[snsSubscriptionTopics.length - 1].SubscriptionArn + ") to complete.  Completed SubscriptionArn: " + subscriptionArn);
-			completed++;
-			console.log("** (" + getCurrentTime() + ") Waiting for final unsubscription (completed " + completed + " of " + snsSubscriptionTopics.length + ")");
+		configuration.amazonSNSPublisher.unSubscribeSNSTopic(
+			configuration.data.SNSTopics[i].SubscriptionArn, 
+			function (subscriptionArn) {
+				completed++;
+				console.log("** (" + getCurrentTime() + ") Waiting for final unsubscription (completed " + completed + " of " + configuration.data.SNSTopics.length + ")");
 
-			// is it the final unsubscrition?  Once all finished, call back.
-//			if (subscriptionArn == snsSubscriptionTopics[snsSubscriptionTopics.length - 1].SubscriptionArn)
-			if (completed == snsSubscriptionTopics.length)
-			{
-				console.log("** (" + getCurrentTime() + ") Completed the final unsubscription...");
-				callback();
-			}
+				if (completed == configuration.data.SNSTopics.length)
+				{
+					console.log("** (" + getCurrentTime() + ") Completed the final unsubscription...");
+					callback();
+				}
 		});
-//		snsSubscriptionTopics[i].SubscriptionArn = undefined;
 	}
 }
 
 function subscribeAllSNSTopics() {
-	for (var i in snsSubscriptionTopics)
+	for (var i in configuration.data.SNSTopics)
 	{
-		console.log("** (" + getCurrentTime() + ") Subscribing to SNS Topic: " + snsSubscriptionTopics[i].TopicARN);
+		console.log("** (" + getCurrentTime() + ") Subscribing to SNS Topic: " + configuration.data.SNSTopics[i].TopicARN);
 
-		subscribeSNSTopic(snsSubscriptionTopics[i].TopicARN, snsEndpointURL);
+		configuration.amazonSNSPublisher.subscribeSNSTopic(
+			configuration.data.SNSTopics[i].TopicARN, 
+			configuration.data.snsEndpointURL
+		);
 	}
 }
 
-function subscribeSNSTopic(topic, endpointURL) {	 
-	AWS_SNS.subscribe({
-	    'TopicArn': topic,
-	    'Protocol': 'http',
-	    'Endpoint': endpointURL
-	}, function (err, result) {
-	 
-	    if (err !== null) {
-			console.log("** (" + getCurrentTime() + ") Error:");
-	        console.log(util.inspect(err));
-	        return;
-	    }
-		console.log("** (" + getCurrentTime() + ") Sent a subscription request for topic " + topic + " and Amazon responded with:");
-		console.log(result);
-	});
-}
-
-function unSubscribeSNSTopic(subscriptionArn, callback) {	 
-	AWS_SNS.unsubscribe({
-	    'SubscriptionArn': subscriptionArn
-	}, function (err, result) {
-	 
-	    if (err !== null) {
-			console.log("** (" + getCurrentTime() + ") Error:");
-	        console.log(util.inspect(err));
-	        return;
-	    }
-		console.log("** (" + getCurrentTime() + ") Sent a unsubscription request for SubscriptionArn " + subscriptionArn + " and Amazon responded with:");
-		console.log(result);
-
-		if (callback != null) callback(subscriptionArn);
-	});
-}
 
 function createHTTPServer(port) {
 	server = http.createServer(parsePOST).listen(port);
@@ -213,24 +135,15 @@ function parsePOST(request, response) {
 
 			if (postData.Type == "SubscriptionConfirmation")
 		    {
-				var topic = postData.TopicArn;
+				var topicArn = postData.TopicArn;
 
-				console.log("** (" + getCurrentTime() + ") Obtained a SNS Subscription Confirmation Token for topic " + topic);
+				console.log("** (" + getCurrentTime() + ") Obtained a SNS Subscription Confirmation Token for topic " + topicArn);
 
-				AWS_SNS.confirmSubscription({
-				    'TopicArn': topic,
-				    'Token': postData.Token,
-				}, function (err, result) {
-				 
-				    if (err !== null) {
-						console.log("** (" + getCurrentTime() + ") ERROR: ");
-						console.log(util.inspect(err));
-						return;
-				    }
-
-					console.log("** (" + getCurrentTime() + ") Responded with a Confirmation for topic " + topic + " and recieved SubscriptionARN: " + result.SubscriptionArn);
-
-					getSNSTopicConfigOptions(topic)["SubscriptionArn"] = result.SubscriptionArn;
+				configuration.amazonSNSPublisher.confirmSubscription(
+					topicArn, 
+					postData.Token,
+					function (subscriptionArn) {
+						getSNSTopicByArn(topicArn).SubscriptionArn = subscriptionArn;
 				});
 			}
 			else if (postData.Type == "Notification")
@@ -238,8 +151,8 @@ function parsePOST(request, response) {
 				var triples;
 				var n3 = N3.Writer();
 
-				var topic = postData.TopicArn;
-				var snsTopicOptions = getSNSTopicConfigOptions(topic);
+				var topicArn = postData.TopicArn;
+				var snsTopicOptions = getSNSTopicByArn(topicArn);
 				var message = JSON.parse(postData.Message);
 				var subjectURIPrefix = snsTopicOptions.SubjectURIPrefix;
 				var subjectType = snsTopicOptions.SubjectType;
@@ -308,7 +221,7 @@ function parsePOST(request, response) {
 					}
 
 
-					if (debug) {
+					if (configuration.data.debug) {
 						console.log("**********************************")					
 						console.log("About to add the triple: ");
 						console.log("Subject: " + subject);
@@ -322,7 +235,7 @@ function parsePOST(request, response) {
 					object = undefined;
 				}
 
-				if (debug) {
+				if (configuration.data.debug) {
 					console.log("** (" + getCurrentTime() + ") filter: " + filter.toString() + " passFilterTest: " + passFilterTest.toString());
 				}
 
@@ -332,7 +245,7 @@ function parsePOST(request, response) {
 					n3.end(function (error, result) {
 						var sparql = "INSERT DATA {" + result + "}";
 
-						if (!fakePublish) {
+						if (!configuration.data.FakePublish) {
 							console.log("** (" + getCurrentTime() + ") SPARQL Statement about to be executed: " + sparql);
 							logToRDF(sparql);
 						}
@@ -341,7 +254,7 @@ function parsePOST(request, response) {
 						}
 					});
 				}
-				else if (debug) {
+				else if (configuration.data.debug) {
 					console.log("** (" + getCurrentTime() + ") Will not record becase a filter criteria has not been met.");
 				}
 		    }
@@ -353,7 +266,7 @@ function parsePOST(request, response) {
 		    }
         });
     }
-    else if (debug)
+    else if (configuration.data.debug)
     {
 		console.log("** (" + getCurrentTime() + ") Got a GET, but do not know why...");
 		console.log(request.param);
@@ -364,7 +277,7 @@ function parsePOST(request, response) {
 }
 
 function logToRDF(sparql) {
-	needle.post(sparqlUpdateEndpoint, { update: sparql }, 
+	needle.post(configuration.data.SPARQL_Update_Endpoint, { update: sparql }, 
 	    function(err, resp, body){
 
 	    	if (body.indexOf("Update succeeded") > 0)
@@ -382,13 +295,13 @@ function logToRDF(sparql) {
 function startPortForwarding() {
 	var natUpnp = require('nat-upnp');
 
-	console.log("** (" + getCurrentTime() + ") Using uPNP to port forward on : " + snsEndpointPublicPort + "/" + snsEndpointPrivatePort);
+	console.log("** (" + getCurrentTime() + ") Using uPNP to port forward on : " + configuration.data.PublicPort + "/" + configuration.data.PrivatePort);
 	var client = natUpnp.createClient();
 
 	client.portMapping({
-		public: snsEndpointPublicPort,
-		private: snsEndpointPrivatePort,
-		ttl: natTTL
+		public: configuration.data.PublicPort,
+		private: configuration.data.PrivatePort,
+		ttl: configuration.data.NatTTL
 	}, function(err) {
 		if (err != null)
 		{
@@ -401,59 +314,14 @@ function getCurrentTime() {
 	return (moment().format(dateformat));
 }
 
-function getSNSTopicConfigOptions(topic) {
-	for (var i in snsSubscriptionTopics)
+function getSNSTopicByArn(topicArn) {
+	for (var i in configuration.data.SNSTopics)
 	{
-		if (snsSubscriptionTopics[i].TopicARN == topic)
+		if (configuration.data.SNSTopics[i].TopicARN == topicArn)
 		{
-			return snsSubscriptionTopics[i];
+			return configuration.data.SNSTopics[i];
 		}
 	}
-}
-
-function loadConfiguration(callback) {
-	fs.readFile(configFileIncPath, 'utf8', function (err, data) {
-		if (err) {
-			console.log("** (" + getCurrentTime() + ") ERROR LOADING CONFIGURATION: " + err);
-			return;
-		}
-
-		var configuration = JSON.parse(data);
-
-		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Adding AWS credentials");
-
-		// configure AWS 
-		AWS.config.update({
-			'region': configuration.AWS.defaultRegion,
-		    'accessKeyId': configuration.AWS.accessKeyId,
-		    'secretAccessKey': configuration.AWS.secretAccessKey
-		});
-		
-		snsSubscriptionTopics = configuration.SNSTopics;
-
-		if (configuration.snsEndpointURL.length > 0)
-		{
-			snsEndpointURL = configuration.snsEndpointURL;
-			console.log("** (" + getCurrentTime() + ") CONFIGURATION: the endpoint was manually set to " + snsEndpointURL);
-		}
-
-		useNATPMP = configuration.UseNATPNP;
-		console.log("** (" + getCurrentTime() + ") CONFIGURATION: NAT Portforwarding is enabled?: " + useNATPMP);
-
-		snsEndpointPrivatePort =  configuration.PrivatePort;
-		snsEndpointPublicPort = configuration.PublicPort;
-		fakePublish = configuration.FakePublish;
-		debug = configuration.debug;
-
-		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Public Port set to " + snsEndpointPublicPort);
-		console.log("** (" + getCurrentTime() + ") CONFIGURATION: Private Port set to " + snsEndpointPrivatePort);
-
-		AWS_SNS = new AWS.SNS().client;		
-
-		sparqlUpdateEndpoint = configuration.SPARQL_Update_Endpoint;
-
-		if (callback != null) callback();		
-	});
 }
 
 main();
